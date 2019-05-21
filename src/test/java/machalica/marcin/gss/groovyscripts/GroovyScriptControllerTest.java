@@ -64,6 +64,18 @@ public class GroovyScriptControllerTest {
 	}
 	
 	@Test
+	public void testGetAllGroovyScriptsWhileScriptTableEmpty() throws Exception {
+		when(groovyScriptsService.getAllGroovyScripts()).thenReturn(new ArrayList<GroovyScript>());
+		
+		mockMvc.perform(get("/api/groovyscripts")
+				.contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(0)));
+		
+		verify(groovyScriptsService).getAllGroovyScripts();
+	}
+	
+	@Test
 	public void testGetGroovyScriptById() throws Exception {
 		when(groovyScriptsService.getGroovyScriptById(2)).thenReturn(allGroovyScripts.get(1));
 		
