@@ -31,6 +31,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import machalica.marcin.gss.exceptions.ResourceNotFoundException;
+import machalica.marcin.gss.groovyscripts.runner.GroovyScriptRunner;
+import machalica.marcin.gss.groovyscripts.runner.GroovyScriptRunnerResult;
+
 @RunWith(SpringRunner.class)
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -48,13 +52,13 @@ public class GroovyScriptControllerTest {
 	@Before
 	public void setUp() throws Exception {
 		allGroovyScripts.clear();
-		allGroovyScripts.add(new GroovyScript("add2", "def add2(a, b) { return a + b }"));
+		allGroovyScripts.add(new GroovyScript("add2", "def add2(a, b) { return a + b }", "add2"));
 		allGroovyScripts.get(0).setId(1);
-		allGroovyScripts.add(new GroovyScript("square", "def square(int a) { return a ** 2 }"));
+		allGroovyScripts.add(new GroovyScript("square", "def square(int a) { return a ** 2 }", "square"));
 		allGroovyScripts.get(1).setId(2);
-		allGroovyScripts.add(new GroovyScript("greet", "println \"hello\""));
+		allGroovyScripts.add(new GroovyScript("greet", "println \"hello\"", "greet"));
 		allGroovyScripts.get(2).setId(3);
-		allGroovyScripts.add(new GroovyScript("empty", ""));
+		allGroovyScripts.add(new GroovyScript("empty", "", "empty"));
 		allGroovyScripts.get(3).setId(4);
 	}
 
@@ -67,8 +71,9 @@ public class GroovyScriptControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$", hasSize(4)))
 				.andExpect(jsonPath("$[0].id", is(1)))
-				.andExpect(jsonPath("$[0].name", is("add2")))
-				.andExpect(jsonPath("$[0].body", is("def add2(a, b) { return a + b }")));
+				.andExpect(jsonPath("$[0].methodName", is("add2")))
+				.andExpect(jsonPath("$[0].body", is("def add2(a, b) { return a + b }")))
+				.andExpect(jsonPath("$[0].scriptName", is("add2")));
 		
 		verify(groovyScriptsService).getAllGroovyScripts();
 	}
@@ -86,35 +91,36 @@ public class GroovyScriptControllerTest {
 	}
 	
 	@Test
-	public void shouldFindScriptById_whenIdExists() throws Exception {
-		when(groovyScriptsService.getGroovyScriptById(2)).thenReturn(allGroovyScripts.get(1));
+	public void shouldFindScriptByScriptName_whenScriptNameExists() throws Exception {
+		when(groovyScriptsService.getGroovyScriptByScriptName("square")).thenReturn(allGroovyScripts.get(1));
 		
-		mockMvc.perform(get("/api/groovyscripts/2")
+		mockMvc.perform(get("/api/groovyscripts/square")
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.id", is(2)))
-				.andExpect(jsonPath("$.name", is("square")))
-				.andExpect(jsonPath("$.body", is("def square(int a) { return a ** 2 }")));
+				.andExpect(jsonPath("$.methodName", is("square")))
+				.andExpect(jsonPath("$.body", is("def square(int a) { return a ** 2 }")))
+				.andExpect(jsonPath("$.scriptName", is("square")));
 		
-		verify(groovyScriptsService).getGroovyScriptById(2);
+		verify(groovyScriptsService).getGroovyScriptByScriptName("square");
 	}
 	
 	@Test
-	public void shouldNotFindScriptById_whenIdDoesntExist() throws Exception {
-		when(groovyScriptsService.getGroovyScriptById(100)).thenThrow(new ResourceNotFoundException());
+	public void shouldNotFindScriptByScriptName_whenScriptNameDoesntExist() throws Exception {
+		when(groovyScriptsService.getGroovyScriptByScriptName("notExistingScript")).thenThrow(new ResourceNotFoundException());
 
-		mockMvc.perform(get("/api/groovyscripts/100")
+		mockMvc.perform(get("/api/groovyscripts/notExistingScript")
 				.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isNotFound())
 				.andExpect(status().reason(containsString("Resource not found")));
 		
-		verify(groovyScriptsService).getGroovyScriptById(100);
+		verify(groovyScriptsService).getGroovyScriptByScriptName("notExistingScript");
 	}
 	
 	@Test
 	public void shouldCreateScript_whenBodyIsValid() throws Exception {
-		GroovyScript groovyScript = new GroovyScript("testScript", "return 2 + 2");
-		GroovyScript expectedGroovyScript = new GroovyScript("testScript", "return 2 + 2");
+		GroovyScript groovyScript = new GroovyScript("testScript", "return 2 + 2", "testScript");
+		GroovyScript expectedGroovyScript = new GroovyScript("testScript", "return 2 + 2", "testScript");
 		expectedGroovyScript.setId(5);
 		when(groovyScriptsService.createGroovyScript(groovyScript)).thenReturn(expectedGroovyScript);
 		
@@ -123,97 +129,101 @@ public class GroovyScriptControllerTest {
         .content(objectToJson(groovyScript)))
 		.andExpect(status().isCreated())
 		.andExpect(jsonPath("$.id", is(expectedGroovyScript.getId())))
-		.andExpect(jsonPath("$.name", is(expectedGroovyScript.getName())))
-		.andExpect(jsonPath("$.body", is(expectedGroovyScript.getBody())));
+		.andExpect(jsonPath("$.methodName", is(expectedGroovyScript.getMethodName())))
+		.andExpect(jsonPath("$.body", is(expectedGroovyScript.getBody())))
+		.andExpect(jsonPath("$.scriptName", is(expectedGroovyScript.getScriptName())));
 		
 		verify(groovyScriptsService).createGroovyScript(groovyScript);
 	}
 	
 	@Test
-	public void shouldNotCreateScript_whenBodyIsInvalid() throws Exception {
-		GroovyScript groovyScript = new GroovyScript("", "return 2 + 2");
+	public void shouldNotCreateScript_whenDataIsInvalid() throws Exception {
+		GroovyScript groovyScript = new GroovyScript("", "return 2 + 2", "");
 		
 		mockMvc.perform(post("/api/groovyscripts")
 		.contentType(MediaType.APPLICATION_JSON)
         .content(objectToJson(groovyScript)))
-		.andExpect(status().isBadRequest());
+		.andExpect(status().isConflict());
 		
 		verify(groovyScriptsService, times(0)).createGroovyScript(groovyScript);
 	}
 	
 	@Test
-	public void shouldDeleteScriptById_whenIdExists() throws Exception {
-		GroovyScript expectedGroovyScript = new GroovyScript("testScript", "return 2 + 2");
+	public void shouldDeleteScriptByScriptName_whenScriptNameExists() throws Exception {
+		GroovyScript expectedGroovyScript = new GroovyScript("testScript", "return 2 + 2", "testScript");
 		expectedGroovyScript.setId(3);
-		when(groovyScriptsService.deleteGroovyScriptById(3)).thenReturn(expectedGroovyScript);
+		when(groovyScriptsService.deleteGroovyScriptByScriptName("testScript")).thenReturn(expectedGroovyScript);
 		
-		mockMvc.perform(delete("/api/groovyscripts/3")
+		mockMvc.perform(delete("/api/groovyscripts/testScript")
 		.contentType(MediaType.APPLICATION_JSON))
 		.andExpect(status().isOk())
 		.andExpect(jsonPath("$.id", is(expectedGroovyScript.getId())))
-		.andExpect(jsonPath("$.name", is(expectedGroovyScript.getName())))
-		.andExpect(jsonPath("$.body", is(expectedGroovyScript.getBody())));
+		.andExpect(jsonPath("$.methodName", is(expectedGroovyScript.getMethodName())))
+		.andExpect(jsonPath("$.body", is(expectedGroovyScript.getBody())))
+		.andExpect(jsonPath("$.scriptName", is(expectedGroovyScript.getScriptName())));
 		
-		verify(groovyScriptsService).deleteGroovyScriptById(3);
+		verify(groovyScriptsService).deleteGroovyScriptByScriptName("testScript");
 	}
 	
 	@Test
-	public void shouldNotDeleteScriptById_whenIdDoesntExist() throws Exception {
-		when(groovyScriptsService.deleteGroovyScriptById(100)).thenThrow(new ResourceNotFoundException());
+	public void shouldNotDeleteScriptByScriptName_whenScriptNameDoesntExist() throws Exception {
+		when(groovyScriptsService.deleteGroovyScriptByScriptName("notExistingScript")).thenThrow(new ResourceNotFoundException());
 		
-		mockMvc.perform(delete("/api/groovyscripts/100")
+		mockMvc.perform(delete("/api/groovyscripts/notExistingScript")
 		.contentType(MediaType.APPLICATION_JSON))
 		.andExpect(status().isNotFound())
 		.andExpect(status().reason(containsString("Resource not found")));
 		
-		verify(groovyScriptsService).deleteGroovyScriptById(100);
+		verify(groovyScriptsService).deleteGroovyScriptByScriptName("notExistingScript");
+		verify(groovyScriptsService, times(0)).deleteGroovyScriptByScriptName("notexistingscript");
 	}
 	
 	@Test
-	public void shouldUpdateScript_whenIdExistsAndBodyIsValid() throws Exception {
-		GroovyScript groovyScript = new GroovyScript("testScript", "return 2 + 2");
+	public void shouldUpdateScript_whenScriptNameExistsAndDataIsValid() throws Exception {
+		GroovyScript groovyScript = new GroovyScript("testScript", "return 2 + 2", "testScript");
 		groovyScript.setId(3);
-		GroovyScript expectedGroovyScript = new GroovyScript("changedName", "changedBody");
+		GroovyScript expectedGroovyScript = new GroovyScript("changedMethodName", "changedBody", "changedScriptName");
 		expectedGroovyScript.setId(3);
-		when(groovyScriptsService.updateGroovyScript(groovyScript, 3)).thenReturn(expectedGroovyScript);
+		when(groovyScriptsService.updateGroovyScriptByScriptName(groovyScript, "testScript")).thenReturn(expectedGroovyScript);
 		
-		mockMvc.perform(put("/api/groovyscripts/3")
+		mockMvc.perform(put("/api/groovyscripts/testScript")
 		.contentType(MediaType.APPLICATION_JSON)
         .content(objectToJson(groovyScript)))
 		.andExpect(status().isOk())
 		.andExpect(jsonPath("$.id", is(expectedGroovyScript.getId())))
-		.andExpect(jsonPath("$.name", is(expectedGroovyScript.getName())))
-		.andExpect(jsonPath("$.body", is(expectedGroovyScript.getBody())));
+		.andExpect(jsonPath("$.methodName", is(expectedGroovyScript.getMethodName())))
+		.andExpect(jsonPath("$.body", is(expectedGroovyScript.getBody())))
+		.andExpect(jsonPath("$.scriptName", is(expectedGroovyScript.getScriptName())));
 		
-		verify(groovyScriptsService).updateGroovyScript(groovyScript, 3);
+		verify(groovyScriptsService).updateGroovyScriptByScriptName(groovyScript, "testScript");
 	}
 	
 	@Test
-	public void shouldNotUpdateScript_whenIdDoesntExist() throws Exception {
-		GroovyScript groovyScript = new GroovyScript("testScript", "return 2 + 2");
+	public void shouldNotUpdateScript_whenScriptNameDoesntExist() throws Exception {
+		GroovyScript groovyScript = new GroovyScript("testScript", "return 2 + 2", "testScript");
 		groovyScript.setId(3);
-		when(groovyScriptsService.updateGroovyScript(groovyScript, 100)).thenThrow(new ResourceNotFoundException());
+		when(groovyScriptsService.updateGroovyScriptByScriptName(groovyScript, "notExistingScript")).thenThrow(new ResourceNotFoundException());
 		
-		mockMvc.perform(put("/api/groovyscripts/100")
+		mockMvc.perform(put("/api/groovyscripts/notExistingScript")
 		.contentType(MediaType.APPLICATION_JSON)
         .content(objectToJson(groovyScript)))
 		.andExpect(status().isNotFound())
 		.andExpect(status().reason(containsString("Resource not found")));
 		
-		verify(groovyScriptsService).updateGroovyScript(groovyScript, 100);
+		verify(groovyScriptsService).updateGroovyScriptByScriptName(groovyScript, "notExistingScript");
 	}
 	
 	@Test
-	public void shouldNotUpdateScript_whenBodyIsInvalid() throws Exception {
-		GroovyScript groovyScript = new GroovyScript("", "return 2 + 2");
+	public void shouldNotUpdateScript_whenDataIsInvalid() throws Exception {
+		GroovyScript groovyScript = new GroovyScript("", "return 2 + 2", "");
 		groovyScript.setId(3);
 		
-		mockMvc.perform(put("/api/groovyscripts/3")
+		mockMvc.perform(put("/api/groovyscripts/testScript")
 		.contentType(MediaType.APPLICATION_JSON)
         .content(objectToJson(groovyScript)))
-		.andExpect(status().isBadRequest());
+		.andExpect(status().isConflict());
 		
-		verify(groovyScriptsService, times(0)).updateGroovyScript(groovyScript, 3);
+		verify(groovyScriptsService, times(0)).updateGroovyScriptByScriptName(groovyScript, "testScript");
 	}
 	
 	@Test
@@ -222,52 +232,52 @@ public class GroovyScriptControllerTest {
 		Object[] args = new Object[] {10,20};
 		GroovyScriptRunnerResult result = new GroovyScriptRunnerResult();
 		result.setValue(30);
-		when(groovyScriptsService.getGroovyScriptById(1)).thenReturn(groovyScript);
+		when(groovyScriptsService.getGroovyScriptByScriptName("add2")).thenReturn(groovyScript);
 		when(groovyScriptRunner.runGroovyScript(groovyScript, args)).thenReturn(result);
 		
-		mockMvc.perform(post("/api/groovyscripts/1")
+		mockMvc.perform(post("/api/groovyscripts/add2")
 		.contentType(MediaType.APPLICATION_JSON)
         .content(objectToJson(args)))
 		.andExpect(status().isOk())
 		.andExpect(jsonPath("$.value", is(result.getValue())))
 		.andExpect(jsonPath("$.error", is(IsNull.nullValue())));
 		
-		verify(groovyScriptsService).getGroovyScriptById(1);
+		verify(groovyScriptsService).getGroovyScriptByScriptName("add2");
 		verify(groovyScriptRunner).runGroovyScript(groovyScript, args);
 	}
 	
 	@Test
 	public void shouldRunScriptAndContainError_whenScriptThrowsError() throws Exception {
-		GroovyScript groovyScript = new GroovyScript("errorScript", "5/0");
+		GroovyScript groovyScript = new GroovyScript("errorScript", "5/0", "errorScript");
 		Object[] args = null;
 		GroovyScriptRunnerResult result = new GroovyScriptRunnerResult();
 		result.setError("ERROR java.lang.ArithmeticException: Division by zero");
-		when(groovyScriptsService.getGroovyScriptById(1)).thenReturn(groovyScript);
+		when(groovyScriptsService.getGroovyScriptByScriptName("errorScript")).thenReturn(groovyScript);
 		when(groovyScriptRunner.runGroovyScript(groovyScript, args)).thenReturn(result);
 		
-		mockMvc.perform(post("/api/groovyscripts/1")
+		mockMvc.perform(post("/api/groovyscripts/errorScript")
 		.contentType(MediaType.APPLICATION_JSON)
         .content(objectToJson(args)))
 		.andExpect(status().isOk())
 		.andExpect(jsonPath("$.value", is(IsNull.nullValue())))
 		.andExpect(jsonPath("$.error", is(result.getError())));
 		
-		verify(groovyScriptsService).getGroovyScriptById(1);
+		verify(groovyScriptsService).getGroovyScriptByScriptName("errorScript");
 		verify(groovyScriptRunner).runGroovyScript(groovyScript, args);
 	}
 	
 	@Test
 	public void shouldNotRunScript_whenScriptDoesntExist() throws Exception {
-		when(groovyScriptsService.getGroovyScriptById(100)).thenThrow(new ResourceNotFoundException());
+		when(groovyScriptsService.getGroovyScriptByScriptName("notExistingScript")).thenThrow(new ResourceNotFoundException());
 		Object[] args = null;
 		
-		mockMvc.perform(post("/api/groovyscripts/100")
+		mockMvc.perform(post("/api/groovyscripts/notExistingScript")
 		.contentType(MediaType.APPLICATION_JSON)
         .content(objectToJson(args)))
 		.andExpect(status().isNotFound())
 		.andExpect(status().reason(containsString("Resource not found")));
 		
-		verify(groovyScriptsService).getGroovyScriptById(100);
+		verify(groovyScriptsService).getGroovyScriptByScriptName("notExistingScript");
 		verify(groovyScriptRunner, times(0)).runGroovyScript(Mockito.any(GroovyScript.class), Mockito.any());
 	}
 	

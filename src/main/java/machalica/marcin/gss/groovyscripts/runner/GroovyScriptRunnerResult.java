@@ -1,4 +1,4 @@
-package machalica.marcin.gss.groovyscripts;
+package machalica.marcin.gss.groovyscripts.runner;
 
 public class GroovyScriptRunnerResult {
 	private Object value;
