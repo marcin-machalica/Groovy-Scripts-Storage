@@ -19,10 +19,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api")
 public class GroovyScriptController {
 	private final GroovyScriptService groovyScriptService;
+	private final GroovyScriptRunner groovyScriptRunner;
 
 	@Autowired
-	public GroovyScriptController(GroovyScriptService groovyScriptService) {
+	public GroovyScriptController(GroovyScriptService groovyScriptService, GroovyScriptRunner groovyScriptRunner) {
 		this.groovyScriptService = groovyScriptService;
+		this.groovyScriptRunner = groovyScriptRunner;
 	}
 
 	@GetMapping("/groovyscripts")
@@ -51,4 +53,11 @@ public class GroovyScriptController {
 	public GroovyScript updateGroovyScript(@Valid @RequestBody GroovyScript groovyScript, @PathVariable int id) {
 		return groovyScriptService.updateGroovyScript(groovyScript, id);
 	}
+	
+	@PostMapping("/groovyscripts/{id}")
+	public GroovyScriptRunnerResult runGroovyScript(@RequestBody (required = false) Object[] args, @PathVariable int id) {
+		GroovyScript groovyScript = groovyScriptService.getGroovyScriptById(id);
+		return groovyScriptRunner.runGroovyScript(groovyScript, args);
+	}
+
 }

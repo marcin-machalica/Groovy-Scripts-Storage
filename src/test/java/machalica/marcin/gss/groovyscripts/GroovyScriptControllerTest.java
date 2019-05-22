@@ -16,9 +16,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.ArrayList;
 import java.util.List;
 
+import org.hamcrest.core.IsNull;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -38,6 +40,8 @@ public class GroovyScriptControllerTest {
 
 	@MockBean
 	private GroovyScriptService groovyScriptsService;
+	@MockBean
+	private GroovyScriptRunner groovyScriptRunner;
 	
 	private final List<GroovyScript> allGroovyScripts = new ArrayList<GroovyScript>();
 
@@ -50,7 +54,7 @@ public class GroovyScriptControllerTest {
 		allGroovyScripts.get(1).setId(2);
 		allGroovyScripts.add(new GroovyScript("greet", "println \"hello\""));
 		allGroovyScripts.get(2).setId(3);
-		allGroovyScripts.add(new GroovyScript("empty", null));
+		allGroovyScripts.add(new GroovyScript("empty", ""));
 		allGroovyScripts.get(3).setId(4);
 	}
 
@@ -212,6 +216,61 @@ public class GroovyScriptControllerTest {
 		verify(groovyScriptsService, times(0)).updateGroovyScript(groovyScript, 3);
 	}
 	
+	@Test
+	public void shouldRunScript_whenScriptExists() throws Exception {
+		GroovyScript groovyScript = allGroovyScripts.get(0);
+		Object[] args = new Object[] {10,20};
+		GroovyScriptRunnerResult result = new GroovyScriptRunnerResult();
+		result.setValue(30);
+		when(groovyScriptsService.getGroovyScriptById(1)).thenReturn(groovyScript);
+		when(groovyScriptRunner.runGroovyScript(groovyScript, args)).thenReturn(result);
+		
+		mockMvc.perform(post("/api/groovyscripts/1")
+		.contentType(MediaType.APPLICATION_JSON)
+        .content(objectToJson(args)))
+		.andExpect(status().isOk())
+		.andExpect(jsonPath("$.value", is(result.getValue())))
+		.andExpect(jsonPath("$.error", is(IsNull.nullValue())));
+		
+		verify(groovyScriptsService).getGroovyScriptById(1);
+		verify(groovyScriptRunner).runGroovyScript(groovyScript, args);
+	}
+	
+	@Test
+	public void shouldRunScriptAndContainError_whenScriptThrowsError() throws Exception {
+		GroovyScript groovyScript = new GroovyScript("errorScript", "5/0");
+		Object[] args = null;
+		GroovyScriptRunnerResult result = new GroovyScriptRunnerResult();
+		result.setError("ERROR java.lang.ArithmeticException: Division by zero");
+		when(groovyScriptsService.getGroovyScriptById(1)).thenReturn(groovyScript);
+		when(groovyScriptRunner.runGroovyScript(groovyScript, args)).thenReturn(result);
+		
+		mockMvc.perform(post("/api/groovyscripts/1")
+		.contentType(MediaType.APPLICATION_JSON)
+        .content(objectToJson(args)))
+		.andExpect(status().isOk())
+		.andExpect(jsonPath("$.value", is(IsNull.nullValue())))
+		.andExpect(jsonPath("$.error", is(result.getError())));
+		
+		verify(groovyScriptsService).getGroovyScriptById(1);
+		verify(groovyScriptRunner).runGroovyScript(groovyScript, args);
+	}
+	
+	@Test
+	public void shouldNotRunScript_whenScriptDoesntExist() throws Exception {
+		when(groovyScriptsService.getGroovyScriptById(100)).thenThrow(new ResourceNotFoundException());
+		Object[] args = null;
+		
+		mockMvc.perform(post("/api/groovyscripts/100")
+		.contentType(MediaType.APPLICATION_JSON)
+        .content(objectToJson(args)))
+		.andExpect(status().isNotFound())
+		.andExpect(status().reason(containsString("Resource not found")));
+		
+		verify(groovyScriptsService).getGroovyScriptById(100);
+		verify(groovyScriptRunner, times(0)).runGroovyScript(Mockito.any(GroovyScript.class), Mockito.any());
+	}
+	
 	private String objectToJson(final Object obj) throws Exception {
 	    try {
 	        final ObjectMapper mapper = new ObjectMapper();
@@ -220,6 +279,6 @@ public class GroovyScriptControllerTest {
 	    } catch (Exception ex) { 
 	    	throw ex;
 	    }
-	}  
+	}
 
 }
