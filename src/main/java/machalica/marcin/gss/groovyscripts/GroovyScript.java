@@ -1,9 +1,11 @@
 package machalica.marcin.gss.groovyscripts;
 
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
@@ -15,18 +17,24 @@ public class GroovyScript {
 
 	@NotNull
 	@Size(min = 1, max = 100)
-	private String name;
+	@Column(name = "method_name")
+	private String methodName;
 
 	@NotNull
 	@Size(max = 300)
 	private String body;
+	
+	@NotNull
+	@Size(min = 1, max = 100)
+	@Column(name = "script_name", unique = true)
+	private String scriptName;
 
-	protected GroovyScript() {
-	}
+	protected GroovyScript() { }
 
-	public GroovyScript(@NotNull String name, @NotNull String body) {
-		this.name = name;
+	public GroovyScript(@Valid String methodName, @Valid String body, @Valid String scriptName) {
+		this.methodName = methodName;
 		this.body = body;
+		this.scriptName = scriptName;
 	}
 
 	public int getId() {
@@ -37,12 +45,12 @@ public class GroovyScript {
 		this.id = id;
 	}
 
-	public String getName() {
-		return name;
+	public String getMethodName() {
+		return methodName;
 	}
 
-	public void setName(String name) {
-		this.name = name;
+	public void setMethodName(String name) {
+		this.methodName = name;
 	}
 
 	public String getBody() {
@@ -53,13 +61,22 @@ public class GroovyScript {
 		this.body = body;
 	}
 
+	public String getScriptName() {
+		return scriptName;
+	}
+
+	public void setScriptName(@Valid String scriptName) {
+		this.scriptName = scriptName;
+	}
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + ((body == null) ? 0 : body.hashCode());
 		result = prime * result + id;
-		result = prime * result + ((name == null) ? 0 : name.hashCode());
+		result = prime * result + ((methodName == null) ? 0 : methodName.hashCode());
+		result = prime * result + ((scriptName == null) ? 0 : scriptName.hashCode());
 		return result;
 	}
 
@@ -79,17 +96,23 @@ public class GroovyScript {
 			return false;
 		if (id != other.id)
 			return false;
-		if (name == null) {
-			if (other.name != null)
+		if (methodName == null) {
+			if (other.methodName != null)
 				return false;
-		} else if (!name.equals(other.name))
+		} else if (!methodName.equals(other.methodName))
+			return false;
+		if (scriptName == null) {
+			if (other.scriptName != null)
+				return false;
+		} else if (!scriptName.equals(other.scriptName))
 			return false;
 		return true;
 	}
 
 	@Override
 	public String toString() {
-		return "GroovyScript [id=" + id + ", name=" + name + ", body=" + body + "]";
+		return "GroovyScript [id=" + id + ", methodName=" + methodName + ", body=" + body + ", scriptName=" + scriptName
+				+ "]";
 	}
 
 }

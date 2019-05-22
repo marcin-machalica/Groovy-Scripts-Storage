@@ -15,6 +15,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import machalica.marcin.gss.groovyscripts.runner.GroovyScriptRunner;
+import machalica.marcin.gss.groovyscripts.runner.GroovyScriptRunnerResult;
+
 @RestController
 @RequestMapping("/api")
 public class GroovyScriptController {
@@ -32,9 +35,9 @@ public class GroovyScriptController {
 		return groovyScriptService.getAllGroovyScripts();
 	}
 
-	@GetMapping("/groovyscripts/{id}")
-	public GroovyScript getGroovyScriptById(@PathVariable int id) {
-		return groovyScriptService.getGroovyScriptById(id);
+	@GetMapping("/groovyscripts/{scriptName}")
+	public GroovyScript getGroovyScriptById(@PathVariable String scriptName) {
+		return groovyScriptService.getGroovyScriptByScriptName(scriptName);
 	}
 
 	@PostMapping("/groovyscripts")
@@ -44,19 +47,19 @@ public class GroovyScriptController {
 		return createdGroovyScript;
 	}
 
-	@DeleteMapping("/groovyscripts/{id}")
-	public GroovyScript deleteGroovyScriptById(@PathVariable int id) {
-		return groovyScriptService.deleteGroovyScriptById(id);
+	@DeleteMapping("/groovyscripts/{scriptName}")
+	public GroovyScript deleteGroovyScriptById(@PathVariable String scriptName) {
+		return groovyScriptService.deleteGroovyScriptByScriptName(scriptName);
 	}
 
-	@PutMapping("/groovyscripts/{id}")
-	public GroovyScript updateGroovyScript(@Valid @RequestBody GroovyScript groovyScript, @PathVariable int id) {
-		return groovyScriptService.updateGroovyScript(groovyScript, id);
+	@PutMapping("/groovyscripts/{scriptName}")
+	public GroovyScript updateGroovyScript(@Valid @RequestBody GroovyScript groovyScript, @PathVariable String scriptName) {
+		return groovyScriptService.updateGroovyScriptByScriptName(groovyScript, scriptName);
 	}
 	
-	@PostMapping("/groovyscripts/{id}")
-	public GroovyScriptRunnerResult runGroovyScript(@RequestBody (required = false) Object[] args, @PathVariable int id) {
-		GroovyScript groovyScript = groovyScriptService.getGroovyScriptById(id);
+	@PostMapping("/groovyscripts/{scriptName}")
+	public GroovyScriptRunnerResult runGroovyScript(@RequestBody (required = false) Object[] args, @PathVariable String scriptName) {
+		GroovyScript groovyScript = groovyScriptService.getGroovyScriptByScriptName(scriptName);
 		return groovyScriptRunner.runGroovyScript(groovyScript, args);
 	}
 
