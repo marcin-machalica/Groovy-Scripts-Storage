@@ -17,13 +17,14 @@ public class GroovyScript {
 	@Size(min = 1, max = 100)
 	private String name;
 
+	@NotNull
 	@Size(max = 300)
 	private String body;
 
 	protected GroovyScript() {
 	}
 
-	public GroovyScript(@NotNull String name, String body) {
+	public GroovyScript(@NotNull String name, @NotNull String body) {
 		this.name = name;
 		this.body = body;
 	}
